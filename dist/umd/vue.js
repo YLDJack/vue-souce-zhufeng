@@ -226,9 +226,23 @@
 
   /*
    * @Author: JackYu
+   * @Date: 2021-09-12 22:17:33
+   * @LastEditors: JackYu
+   * @LastEditTime: 2021-09-12 22:32:21
+   * @Description: file content
+   */
+  // AST语法树  用对象来描述原生语法的
+  // 虚拟dom  用对象来描述dom节点 
+  // html-parser 正则相关 （？：为匹配不捕获）
+  function compileToFunction(template) {
+    return function render() {};
+  }
+
+  /*
+   * @Author: JackYu
    * @Date: 2021-08-29 22:16:10
    * @LastEditors: JackYu
-   * @LastEditTime: 2021-08-29 22:46:02
+   * @LastEditTime: 2021-09-12 22:17:52
    * @Description: file content
    */
 
@@ -241,6 +255,31 @@
       vm.$options = options; // 初始化状态
 
       initState(vm); //分割代码
+      // 如果用户传入了el属性，需要将页面渲染出来
+      //如果用户传入el 就要实现挂载流程
+
+      if (vm.$options.el) {
+        vm.$mount(vm.$options.el);
+      }
+    };
+
+    Vue.prototype.$mount = function (el) {
+      var vm = this;
+      var options = vm.$options;
+      el = document.querySelector(el); //将el转换为dom对象
+      // 默认先回查找有没有render方法，没用render 会采用template 
+      // template也没有就会采用传入的el中的内容
+
+      if (!options.render) {
+        // 对模板进行编译
+        options.template; //取出模板
+        // 我们需要将template 转化为render方法 vue1.0(字符串正则化匹配，性能较差) vue 2.0(虚拟DOM)
+
+
+        var render = compileToFunction();
+        options.render = render;
+      } // 后续传的直接使用options.render即可，用户传了render则使用传的render，没传则使用编译好的 
+
     };
   }
 
