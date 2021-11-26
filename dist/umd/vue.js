@@ -42,6 +42,65 @@
     return Constructor;
   }
 
+  function _slicedToArray(arr, i) {
+    return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest();
+  }
+
+  function _arrayWithHoles(arr) {
+    if (Array.isArray(arr)) return arr;
+  }
+
+  function _iterableToArrayLimit(arr, i) {
+    var _i = arr == null ? null : typeof Symbol !== "undefined" && arr[Symbol.iterator] || arr["@@iterator"];
+
+    if (_i == null) return;
+    var _arr = [];
+    var _n = true;
+    var _d = false;
+
+    var _s, _e;
+
+    try {
+      for (_i = _i.call(arr); !(_n = (_s = _i.next()).done); _n = true) {
+        _arr.push(_s.value);
+
+        if (i && _arr.length === i) break;
+      }
+    } catch (err) {
+      _d = true;
+      _e = err;
+    } finally {
+      try {
+        if (!_n && _i["return"] != null) _i["return"]();
+      } finally {
+        if (_d) throw _e;
+      }
+    }
+
+    return _arr;
+  }
+
+  function _unsupportedIterableToArray(o, minLen) {
+    if (!o) return;
+    if (typeof o === "string") return _arrayLikeToArray(o, minLen);
+    var n = Object.prototype.toString.call(o).slice(8, -1);
+    if (n === "Object" && o.constructor) n = o.constructor.name;
+    if (n === "Map" || n === "Set") return Array.from(o);
+    if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen);
+  }
+
+  function _arrayLikeToArray(arr, len) {
+    if (len == null || len > arr.length) len = arr.length;
+
+    for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i];
+
+    return arr2;
+  }
+
+  function _nonIterableRest() {
+    throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+  }
+
   /*
    *
    *@param { data} 判断当前数据是不是对象
@@ -399,18 +458,58 @@
     return root;
   }
 
-  /*
-   * @Author: JackYu
-   * @Date: 2021-09-12 22:17:33
-   * @LastEditors: JackYu
-   * @LastEditTime: 2021-09-12 22:32:21
-   * @Description: file content
-   */
+  function genProps(attrs) {
+    //处理属性 拼接成属性的字符串
+    var str = '';
+
+    for (var i = 0; i < attrs.length; i++) {
+      var _str = '';
+
+      if (attrs.name === 'style') {
+        (function () {
+          var obj = {}; // style="color: red;font-size: 14px;" => {style:{color:'red'},id:name,}
+
+          attrs.value.splice(';').forEach(function (item) {
+            //属性之间都是以';'为分割
+            var _item$split = item.split(':'),
+                _item$split2 = _slicedToArray(_item$split, 2),
+                key = _item$split2[0],
+                value = _item$split2[1]; //使用结构赋值获取到属性的key和value
+
+
+            obj[key] = value; //生成相应的属性对象
+          });
+          attrs.value = obj;
+        })();
+      }
+
+      _str += "".concat(attrs.name, ":").concat(JSON.stringify(attrs.value));
+    }
+
+    return "{".concat(str.slice(0, -1), "}"); //去掉尾巴的','号
+  }
+
+  function generate(el) {
+    //[{name:'id',value:'app'},{}] -> {id:app,a:1,b:2}
+    var code = "_c(\"".concat(el.tag, "\",\n  ").concat(el.attrs.length ? genProps(el.attrs) : 'undefined', ")"); //传入属性
+
+    return code;
+  }
+
   function compileToFunction(template) {
     //1)解析html字符串
     var root = parseHTML(template); //将template转换为AST语法树
+    // 需要将ast语法书生成最终的render函数 就是字符串拼接（模板引擎）
 
-    console.log(root);
+    var code = generate(root); //生成render最核心的方法
+    //   <div id="app">
+    //   <p>hello {{name}}</p>
+    //   </div>
+    // 核心思路就是将模板转换成 下面这段字符串
+    //  将ast树，再次转换成js的语法
+    //_c("div",{id:app},_c("p",undefined,_v('hello'+ _s(name)))，_v('hello'))  将name转换为字符串
+
+    console.log(code);
     return function render() {};
   }
   // {
