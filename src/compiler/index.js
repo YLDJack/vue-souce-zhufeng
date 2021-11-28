@@ -8,6 +8,8 @@
 
 import { parseHTML } from "./parser-html";
 
+const defaultTagRE = /\{\{((?:.|\r?\n)+?)\}\}/g; //  {{aaa}} -> 'aaa'
+
 function genProps(attrs) {
   //处理属性 拼接成属性的字符串
   let str = "";
@@ -41,9 +43,30 @@ function genChildren(el) {
 function gen(node) {
   if (node.type == 1) {
     //元素标签
-    return generate(node)
-  }else{
-    let text = node.text
+    return generate(node);
+  } else {
+    //正则问题 lastIndex
+    // -> _v("a" + _s(name) + "b" + _s(age) + 'c')  不停地匹配"{}"
+    //defaultTagRE = /\{\{((?:.|\r?\n)+?)\}\}/g; //  {{aaa}} -> 'aaa'
+    let text = node.text; // a {{name}} b{{age}} c
+    let tokens = [];
+    let match, index;
+    // 每次的偏移量 buff.split()(源码)
+    let lastIndex = (defaultTagRE.lastIndex = 0); //只要是全局匹配 就需要将lastIndex每次匹配调到0处
+    while ((match = defaultTagRE.exec(text))) {
+      index = match.index;
+      if (index > lastIndex) {
+        tokens.push(JSON.stringify(text.slice(lastIndex, index)));
+      }
+      tokens.push(`_s(${match[1].trim()})`);
+      lastIndex = index + match[0].length;
+    }
+    if (lastIndex < text.length) {
+      //放入lastIndex（匹配到的模板字符串的最大索引）后的字符
+      //放入 a {{name}} b{{age}} c 中未匹配到的C
+      tokens.push(JSON.stringify(text.slice(lastIndex)));
+    }
+    return `_v(${tokens.join("+")})`;
   }
 }
 
@@ -53,7 +76,8 @@ function generate(el) {
   let code = `_c("${el.tag}",
   ${el.attrs.length ? genProps(el.attrs) : "undefined"}${
     children ? `,${children}` : ""
-  })`; //传入属性
+  }
+  )`; //传入属性
 
   return code;
 }
@@ -72,8 +96,12 @@ export function compileToFunction(template) {
   // 核心思路就是将模板转换成 下面这段字符串
   //  将ast树，再次转换成js的语法
   //_c("div",{id:app},_c("p",undefined,_v('hello'+ _s(name)))，_v('hello'))  将name转换为字符串
-  console.log(code);
-  return function render() {};
+
+  //所有模板的引擎实现 都需要new Function + with(添加作用域)
+  //模板上使用实例上的属性
+  //实现模板引擎：1.拼接字符串 2.增加with 3.new function
+  let renderFn = new Function(`with(this){return ${code}}`); //renderFn.call(xxx) -> new Function(`with(xxx){return ${code}}`)
+  return renderFn;
 }
 
 {
